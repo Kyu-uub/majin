@@ -1,0 +1,66 @@
+{
+  "name": "majin-assistant",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Majin — a local AI assistant that explains things and does them, from one chat with a live workspace.",
+  "author": "Majin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_GITHUB_USERNAME/majin.git"
+  },
+  "homepage": "https://github.com/YOUR_GITHUB_USERNAME/majin",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "css": "tailwindcss -i src/tailwind.css -o public/css/tailwind.css --minify",
+    "css:watch": "tailwindcss -i src/tailwind.css -o public/css/tailwind.css --watch",
+    "app": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win nsis",
+    "release": "electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.6",
+    "electron-updater": "^6.6.2",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "tailwindcss": "^3.4.17"
+  },
+  "build": {
+    "appId": "com.majin.assistant",
+    "productName": "Majin",
+    "publish": [
+      {
+        "provider": "github",
+        "releaseType": "release"
+      }
+    ],
+    "directories": {
+      "output": "dist-app"
+    },
+    "files": [
+      "server.js",
+      "tools.js",
+      "providers.js",
+      "package.json",
+      "public/**/*",
+      "desktop/**/*"
+    ],
+    "win": {
+      "icon": "desktop/majin.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Majin"
+    }
+  }
+}

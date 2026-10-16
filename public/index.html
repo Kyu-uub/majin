@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Majin</title>
+
+  <!-- Self-contained offline UI. Everything below is served from local vendor or
+       authored CSS — Majin needs no internet to render. No Tailwind build step. -->
+  <link rel="stylesheet" href="vendor/inter/inter.css" />
+  <link rel="stylesheet" href="vendor/highlight/atom-one-dark.min.css" />
+  <link rel="stylesheet" href="css/app.css?v=39" />
+  <script src="vendor/lucide.min.js?v=29"></script>
+  <script src="vendor/marked.min.js?v=29"></script>
+  <script src="vendor/purify.min.js?v=29"></script>
+  <script src="vendor/highlight/highlight.min.js?v=29"></script>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#070b14" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon-1024.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Majin" />
+</head>
+<body>
+  <div id="app" class="app">
+
+    <!-- ============================ TOP BAR ============================ -->
+    <header class="topbar" role="banner">
+      <div class="tb-left">
+        <button class="icon-btn" id="railToggleBtn" title="Toggle conversations  (Ctrl/⌘ + ])" aria-label="Toggle conversations">
+          <i data-lucide="panel-left"></i>
+        </button>
+        <div class="brand">
+          <span class="brand-mark"><i data-lucide="sparkles"></i></span>
+          <span class="brand-name">Majin</span>
+          <span class="brand-tag">Personal AI assistant</span>
+        </div>
+      </div>
+
+      <div class="tb-center">
+        <button class="cmd-trigger" id="paletteBtn" title="Command palette  (Ctrl/⌘ + K)" aria-label="Open command palette">
+          <i data-lucide="search"></i><span>Search or run a command…</span><kbd>⌘K</kbd>
+        </button>
+      </div>
+
+      <div class="tb-right">
+        <div class="status-pill" id="statusPill" title="Active provider & model">
+          <span class="status-dot" id="statusDot" aria-hidden="true"></span><span id="statusText">connecting…</span>
+        </div>
+        <button class="icon-btn" id="themeBtn" title="Theme — click to cycle (system / light / dark)" aria-label="Toggle theme"><i id="themeIcon" data-lucide="monitor"></i></button>
+        <button class="icon-btn" id="autoApproveBtn" title="Auto-approve non-destructive actions" aria-label="Toggle auto-approve"><i id="autoApproveIcon" data-lucide="shield"></i></button>
+        <button class="icon-btn" id="ttsToggleBtn" title="Voice replies" aria-pressed="false" aria-label="Toggle voice replies"><i id="ttsIcon" data-lucide="volume-x"></i></button>
+        <button class="icon-btn" id="newWindowBtn" title="Open another independent window  (Ctrl/⌘ + ⇧ + O)" aria-label="New window"><i data-lucide="app-window"></i></button>
+        <button class="icon-btn" id="settingsBtn" title="Settings — provider, model & API keys" aria-label="Settings"><i data-lucide="settings"></i></button>
+      </div>
+    </header>
+
+    <!-- ============================ BODY ============================ -->
+    <div class="shell" id="shell">
+
+      <!-- Conversation rail -->
+      <aside class="rail" id="convRail" aria-label="Conversations">
+        <div class="rail-head">
+          <span class="rail-title">Conversations</span>
+          <button class="chip-btn primary" id="newThreadBtn" title="New conversation"><i data-lucide="plus"></i><span>New</span></button>
+        </div>
+        <div class="rail-search">
+          <i data-lucide="filter"></i>
+          <input id="convSearch" type="text" placeholder="Search conversations…" aria-label="Search conversations" autocomplete="off" />
+        </div>
+        <div class="rail-list" id="threadList" role="list"></div>
+        <div class="rail-foot">
+          <button class="link-btn" id="exportBtn" title="Export the current conversation as Markdown"><i data-lucide="download"></i><span>Export .md</span></button>
+          <button class="link-btn" id="snippetsBtn" title="Saved prompt snippets"><i data-lucide="bookmark"></i><span>Snippets</span></button>
+        </div>
+      </aside>
+
+      <div class="splitter" id="railSplitter" role="separator" aria-orientation="vertical" tabindex="-1" hidden></div>
+
+      <!-- Chat column -->
+      <section class="chat" id="chatCol" aria-label="Chat">
+        <div class="chat-scroll-wrap">
+          <div class="chat-thread">
+            <div id="chatMessages" class="messages" role="log" aria-live="polite"></div>
+          </div>
+          <button class="scroll-pill" id="scrollPill" type="button" title="Jump to latest" hidden>
+            <i data-lucide="chevron-down"></i><span id="scrollCount" class="sp-count" hidden>0</span>
+          </button>
+        </div>
+
+        <div class="composer-wrap">
+          <!-- context chips (working dir, attached files) -->
+          <div class="ctx-tray" id="ctxTray" hidden></div>
+
+          <form class="composer" id="chatForm">
+            <div class="composer-row">
+              <button type="button" class="icon-btn" id="attachBtn" title="Attach an image"><i data-lucide="paperclip"></i></button>
+              <button type="button" class="icon-btn" id="screenBtn" title="Open the floating Vision pill — an always-on-top overlay to share your screen and talk to Majin about it"><i data-lucide="monitor"></i></button>
+              <button type="button" class="icon-btn" id="micBtn" title="Dictate"><i data-lucide="mic"></i></button>
+              <input type="file" id="imgInput" accept="image/*" hidden />
+
+              <div class="input-shell">
+                <textarea id="chatInput" rows="1" placeholder="Ask Majin to explain, build, or DO something…  type / for commands, @ for files"
+                          autocomplete="off" spellcheck="false" aria-label="Message"></textarea>
+
+                <!-- slash / @ suggestion popover -->
+                <div class="suggest" id="suggest" role="listbox" hidden></div>
+              </div>
+
+              <button type="button" class="icon-btn stop-btn" id="stopBtn" title="Stop generating" hidden><i data-lucide="square"></i></button>
+              <button type="submit" class="send-btn" id="sendBtn" title="Send  (Enter)"><i data-lucide="arrow-up"></i></button>
+            </div>
+
+            <div class="composer-foot">
+              <div class="cf-left">
+                <button type="button" class="mini-select" id="modelChip" title="Quick-switch model"><i data-lucide="cpu"></i><span id="modelChipLabel">model</span><i data-lucide="chevron-down" class="caret"></i></button>
+                <button type="button" class="mini-select" id="cwdChip" title="Pin a working folder to this conversation"><i data-lucide="folder"></i><span id="cwdChipLabel">cwd</span></button>
+              </div>
+              <div class="cf-right">
+                <span class="cf-hint"><kbd>↵</kbd> send · <kbd>⇧↵</kbd> newline · <kbd>/</kbd> commands · <kbd>@</kbd> files</span>
+                <span class="cf-busy" id="busyLabel"></span>
+              </div>
+            </div>
+          </form>
+
+          <!-- quick model switch popup -->
+          <div class="model-pop" id="modelPop" hidden></div>
+        </div>
+      </section>
+
+      <div class="splitter" id="wsSplitter" role="separator" aria-orientation="vertical" tabindex="-1"></div>
+
+      <!-- Workspace column -->
+      <section class="workspace" id="wsCol" aria-label="Workspace">
+        <div class="ws-tabs" id="wsTabs" role="tablist">
+          <button class="ws-tab active" role="tab" data-tab="canvas"><i data-lucide="layout-panel-left"></i><span>Canvas</span></button>
+          <button class="ws-tab" role="tab" data-tab="project"><i data-lucide="network"></i><span>Project</span></button>
+          <button class="ws-tab" role="tab" data-tab="reader"><i data-lucide="globe"></i><span>Reader</span></button>
+          <button class="ws-tab" role="tab" data-tab="memory"><i data-lucide="brain"></i><span>Memory</span></button>
+          <button class="ws-tab" role="tab" data-tab="activity"><i data-lucide="activity"></i><span>Activity</span><span class="tab-badge" id="actBadge" hidden>0</span></button>
+          <button class="icon-btn ws-clear" id="clearWorkspaceBtn" title="Clear this panel"><i data-lucide="eraser"></i></button>
+        </div>
+
+        <!-- Adaptive action HUD (animated per-tool scene) -->
+        <div class="action-stage" id="actionStage" data-tone="info" hidden>
+          <div class="stage-inner">
+            <div class="stage-vis" id="actionVis"></div>
+            <div class="stage-txt"><div class="stage-verb" id="actionVerb"></div><div class="stage-detail" id="actionDetail"></div></div>
+            <div class="stage-bar"></div>
+          </div>
+        </div>
+
+        <!-- ===== Canvas (rich blocks from the model) ===== -->
+        <div class="ws-panel active" id="panel-canvas" role="tabpanel">
+          <div class="panel-scroll">
+            <div class="ws-title" id="wsTitle" hidden></div>
+            <div class="blocks" id="blocks"></div>
+            <div class="empty-state" id="emptyCanvas">
+              <div class="empty-ic"><i data-lucide="sparkles"></i></div>
+              <h2>Your assistant workspace</h2>
+              <p>Structured answers, screenshots, captured images and tool output appear here as you talk to Majin.</p>
+              <div class="hint-chips" id="hintChips"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Project (repo map via /api/scan) ===== -->
+        <div class="ws-panel" id="panel-project" role="tabpanel">
+          <div class="tool-bar">
+            <div class="tb-field"><i data-lucide="folder"></i><input id="scanPath" type="text" placeholder="C:\\projects\\my-app  or  ~/PycharmProjects…" autocomplete="off" spellcheck="false" /></div>
+            <button class="chip-btn primary" id="scanGoBtn"><i data-lucide="radar"></i><span>Scan</span></button>
+          </div>
+          <div class="panel-scroll" id="projectBody">
+            <div class="empty-state">
+              <div class="empty-ic"><i data-lucide="network"></i></div>
+              <h2>Project map</h2>
+              <p>Point Majin at a code folder to visualise its modules, dependencies, hot files and health — then click any file to read it.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Reader (web page / PDF / captions via /api/extract) ===== -->
+        <div class="ws-panel" id="panel-reader" role="tabpanel">
+          <div class="tool-bar">
+            <div class="tb-field"><i data-lucide="link"></i><input id="readUrl" type="text" placeholder="https://…   (web page, PDF, or YouTube link)" autocomplete="off" spellcheck="false" /></div>
+            <button class="chip-btn primary" id="readGoBtn"><i data-lucide="book-open"></i><span>Read</span></button>
+          </div>
+          <div class="panel-scroll" id="readerBody">
+            <div class="empty-state">
+              <div class="empty-ic"><i data-lucide="globe"></i></div>
+              <h2>Reader</h2>
+              <p>Fetch a web page as clean article text, open a PDF, or pull a YouTube video's captions — all local, all private.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Memory (index status, search results, reminders) ===== -->
+        <div class="ws-panel" id="panel-memory" role="tabpanel">
+          <div class="panel-scroll">
+            <div class="mem-section">
+              <div class="mem-head"><i data-lucide="brain"></i><h3>Semantic memory</h3></div>
+              <div id="memoryStats" class="mem-stats"><span class="muted">Ask Majin to index a folder to build memory.</span></div>
+            </div>
+            <div class="mem-section">
+              <div class="mem-head"><i data-lucide="clock"></i><h3>Reminders</h3></div>
+              <div id="reminderList" class="rem-list"><span class="muted">No reminders.</span></div>
+            </div>
+            <div class="mem-section">
+              <div class="mem-head"><i data-lucide="list-restarts"></i><h3>Recent memory hits</h3></div>
+              <div id="memoryHits" class="mem-hits"><span class="muted">Results from memory_search land here.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Activity (tool run log + approval history) ===== -->
+        <div class="ws-panel" id="panel-activity" role="tabpanel">
+          <div class="panel-scroll">
+            <div class="mem-section">
+              <div class="mem-head"><i data-lucide="terminal"></i><h3>Tool run log</h3></div>
+              <div id="activity" class="activity-log"></div>
+            </div>
+            <div class="mem-section">
+              <div class="mem-head"><i data-lucide="shield-check"></i><h3>Approval history</h3></div>
+              <div id="approvalLog" class="approval-log"><span class="muted">Confirmed &amp; denied actions are recorded here.</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================ STATUS BAR ============================ -->
+    <footer class="statusbar" role="contentinfo">
+      <div class="sb-left">
+        <span class="sb-item"><i data-lucide="git-branch"></i><span id="sbThread">New chat</span></span>
+        <span class="sb-item" id="sbMetrics" title="Last turn timing & tool count"></span>
+      </div>
+      <div class="sb-right">
+        <span class="sb-item muted" id="sbConn">localhost</span>
+        <span class="sb-item"><kbd>Esc</kbd> stop / close</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ============================ CONFIRM MODAL ============================ -->
+  <div class="modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
+    <div class="modal-card rose">
+      <div class="modal-head">
+        <i data-lucide="shield-alert" class="ico-rose"></i>
+        <h2 id="confirmTitle">Majin wants to do this</h2>
+      </div>
+      <p class="confirm-tool" id="confirmTool"></p>
+      <p class="confirm-reason" id="confirmReason"></p>
+      <pre class="confirm-args" id="confirmArgs"></pre>
+      <div class="modal-actions">
+        <span class="kbd-hint"><kbd>Enter</kbd> approve · <kbd>Esc</kbd> deny</span>
+        <div class="grow"></div>
+        <button class="btn" id="denyBtn">Deny</button>
+        <button class="btn primary rose" id="approveBtn">Approve</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ SETTINGS MODAL ============================ -->
+  <div class="modal" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" hidden>
+    <div class="modal-card wide">
+      <div class="modal-head">
+        <i data-lucide="settings" class="ico-cyan"></i>
+        <h2 id="settingsTitle">Settings</h2>
+        <div class="grow"></div>
+        <button class="icon-btn" id="settingsCloseBtn" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="settings-body">
+        <div class="settings-col">
+          <h4>Provider</h4>
+          <label class="field"><span class="field-lab">Active provider</span>
+            <select id="providerSelect" class="input">
+              <option value="gemini">Google Gemini</option>
+              <option value="groq">Groq</option>
+              <option value="freellm">FreeLLMAPI (free pool)</option>
+            </select>
+          </label>
+          <label class="field"><span class="field-lab">Model</span>
+            <div class="row">
+              <select id="modelSelect" class="input grow"></select>
+              <button type="button" class="icon-btn" id="refreshModelsBtn" title="Reload model list"><i data-lucide="refresh-cw"></i></button>
+            </div>
+          </label>
+          <p class="models-loading" id="modelsLoading" hidden></p>
+
+          <h4>Interface</h4>
+          <label class="switch"><input type="checkbox" id="motionToggle" /><span class="track"><span class="thumb"></span></span><span>Animations &amp; reduced motion</span></label>
+
+          <h4>Keys</h4>
+          <p class="key-status" id="keyStatus">Loading…</p>
+          <p class="key-error" id="keyError" hidden></p>
+        </div>
+
+        <div class="settings-col">
+          <h4>API keys</h4>
+          <label class="field"><span class="field-lab">Gemini API key <span class="mask" id="geminiMask"></span></span>
+            <div class="row"><input id="apiKeyInput" type="password" class="input grow mono" placeholder="AIza…" autocomplete="off" spellcheck="false" />
+              <button type="button" class="icon-btn" id="toggleKeyVisBtn" title="Show / hide"><i data-lucide="eye"></i></button></div></label>
+          <label class="field"><span class="field-lab">Groq API key <span class="mask" id="groqMask"></span></span>
+            <div class="row"><input id="groqKeyInput" type="password" class="input grow mono" placeholder="gsk_…" autocomplete="off" spellcheck="false" />
+              <button type="button" class="icon-btn" id="toggleGroqVisBtn" title="Show / hide"><i data-lucide="eye"></i></button></div></label>
+          <label class="field"><span class="field-lab">FreeLLMAPI unified key <span class="mask" id="freellmMask"></span></span>
+            <div class="row"><input id="freellmKeyInput" type="password" class="input grow mono" placeholder="freellmapi-…" autocomplete="off" spellcheck="false" />
+              <button type="button" class="icon-btn" id="toggleFreellmVisBtn" title="Show / hide"><i data-lucide="eye"></i></button></div></label>
+          <label class="field"><span class="field-lab">FreeLLMAPI base URL</span>
+            <input id="freellmBaseInput" type="text" class="input mono" placeholder="http://localhost:3001/v1" autocomplete="off" spellcheck="false" /></label>
+          <p class="hint">Keys are stored only on this machine, in the <code>.env</code> next to <code>server.js</code>. Saving applies them immediately.</p>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <div class="grow"></div>
+        <button class="btn" id="cancelKeyBtn">Cancel</button>
+        <button class="btn primary cyan" id="saveKeyBtn">Save settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ SNIPPETS DRAWER ============================ -->
+  <div class="drawer" id="snippetsDrawer" role="dialog" aria-modal="true" aria-labelledby="snipTitle" hidden>
+    <div class="drawer-card">
+      <div class="modal-head">
+        <i data-lucide="bookmark" class="ico-cyan"></i><h2 id="snipTitle">Prompt snippets</h2>
+        <div class="grow"></div>
+        <button class="icon-btn" id="snippetsCloseBtn" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="drawer-body" id="snippetsList"></div>
+      <div class="modal-actions">
+        <div class="grow"></div>
+        <button class="btn" id="addSnippetBtn"><i data-lucide="plus"></i> Save current prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ COMMAND PALETTE ============================ -->
+  <div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Command palette" hidden>
+    <div class="palette-box">
+      <div class="palette-input">
+        <i data-lucide="command"></i>
+        <input id="paletteInput" type="text" placeholder="Type a command, action or conversation…" autocomplete="off" spellcheck="false" aria-label="Filter commands" />
+        <kbd>↵</kbd>
+      </div>
+      <div class="palette-list" id="paletteList" role="listbox"></div>
+    </div>
+  </div>
+
+  <!-- lightbox -->
+  <div class="lightbox" id="lightbox" hidden>
+    <img id="lightboxImg" alt="Captured screen" />
+  </div>
+
+  <!-- toast host + confetti layer -->
+  <div class="toast-host" id="toastHost" aria-live="polite" aria-atomic="false"></div>
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
+
+  <script src="js/app.js?v=39"></script>
+</body>
+</html>

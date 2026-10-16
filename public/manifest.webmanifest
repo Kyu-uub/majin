@@ -1,0 +1,17 @@
+{
+  "name": "Majin — Personal AI Assistant",
+  "short_name": "Majin",
+  "description": "A local AI assistant that explains things and does them: control apps and media, read and write files, capture the screen, browse, set reminders and analyse code, all from one chat with a live workspace.",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#070b14",
+  "theme_color": "#070b14",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
+  ]
+}
