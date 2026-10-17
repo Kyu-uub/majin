@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -10,14 +10,14 @@
        authored CSS — Majin needs no internet to render. No Tailwind build step. -->
   <link rel="stylesheet" href="vendor/inter/inter.css" />
   <link rel="stylesheet" href="vendor/highlight/atom-one-dark.min.css" />
-  <link rel="stylesheet" href="css/app.css?v=39" />
+  <link rel="stylesheet" href="css/app.css?v=46" />
   <script src="vendor/lucide.min.js?v=29"></script>
   <script src="vendor/marked.min.js?v=29"></script>
   <script src="vendor/purify.min.js?v=29"></script>
   <script src="vendor/highlight/highlight.min.js?v=29"></script>
 
   <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#070b14" />
+  <meta name="theme-color" content="#f5f6fa" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-1024.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -35,24 +35,21 @@
         <div class="brand">
           <span class="brand-mark"><i data-lucide="sparkles"></i></span>
           <span class="brand-name">Majin</span>
-          <span class="brand-tag">Personal AI assistant</span>
         </div>
       </div>
 
       <div class="tb-center">
         <button class="cmd-trigger" id="paletteBtn" title="Command palette  (Ctrl/⌘ + K)" aria-label="Open command palette">
-          <i data-lucide="search"></i><span>Search or run a command…</span><kbd>⌘K</kbd>
+          <i data-lucide="search"></i><span>Search or run a command…</span><kbd>Ctrl K</kbd>
         </button>
       </div>
 
       <div class="tb-right">
         <div class="status-pill" id="statusPill" title="Active provider & model">
-          <span class="status-dot" id="statusDot" aria-hidden="true"></span><span id="statusText">connecting…</span>
+          <span class="status-dot" id="statusDot" aria-hidden="true"></span><span id="statusText" role="status" aria-live="polite">connecting…</span>
         </div>
         <button class="icon-btn" id="themeBtn" title="Theme — click to cycle (system / light / dark)" aria-label="Toggle theme"><i id="themeIcon" data-lucide="monitor"></i></button>
         <button class="icon-btn" id="autoApproveBtn" title="Auto-approve non-destructive actions" aria-label="Toggle auto-approve"><i id="autoApproveIcon" data-lucide="shield"></i></button>
-        <button class="icon-btn" id="ttsToggleBtn" title="Voice replies" aria-pressed="false" aria-label="Toggle voice replies"><i id="ttsIcon" data-lucide="volume-x"></i></button>
-        <button class="icon-btn" id="newWindowBtn" title="Open another independent window  (Ctrl/⌘ + ⇧ + O)" aria-label="New window"><i data-lucide="app-window"></i></button>
         <button class="icon-btn" id="settingsBtn" title="Settings — provider, model & API keys" aria-label="Settings"><i data-lucide="settings"></i></button>
       </div>
     </header>
@@ -60,10 +57,18 @@
     <!-- ============================ BODY ============================ -->
     <div class="shell" id="shell">
 
-      <!-- Conversation rail -->
+      <!-- Primary navigation and conversation list -->
       <aside class="rail" id="convRail" aria-label="Conversations">
+        <nav class="primary-nav" id="primaryNav" aria-label="Main navigation">
+          <span class="nav-caption">WORKSPACE</span>
+          <button class="primary-nav-item active" type="button" data-view="canvas" aria-current="page"><i data-lucide="messages-square"></i><span>Chat</span></button>
+          <button class="primary-nav-item" type="button" data-view="project"><i data-lucide="folder-kanban"></i><span>Project</span></button>
+          <button class="primary-nav-item" type="button" data-view="reader"><i data-lucide="book-open"></i><span>Reader</span></button>
+          <button class="primary-nav-item" type="button" data-view="memory"><i data-lucide="brain"></i><span>Memory</span></button>
+          <button class="primary-nav-item" type="button" data-view="activity"><i data-lucide="activity"></i><span>Activity</span><span class="nav-badge" id="navActBadge" hidden>0</span></button>
+        </nav>
         <div class="rail-head">
-          <span class="rail-title">Conversations</span>
+          <span class="rail-title">Recent chats</span>
           <button class="chip-btn primary" id="newThreadBtn" title="New conversation"><i data-lucide="plus"></i><span>New</span></button>
         </div>
         <div class="rail-search">
@@ -81,6 +86,15 @@
 
       <!-- Chat column -->
       <section class="chat" id="chatCol" aria-label="Chat">
+        <div class="chat-head">
+          <div class="chat-head-copy">
+            <span class="eyebrow">CONVERSATION</span>
+            <h1 id="chatTitle">New conversation</h1>
+          </div>
+          <button class="chip-btn workspace-shortcut" id="workspaceToggleBtn" type="button" aria-label="Open workspace tools">
+            <i data-lucide="layout-panel-right"></i><span>Workspace</span>
+          </button>
+        </div>
         <div class="chat-scroll-wrap">
           <div class="chat-thread">
             <div id="chatMessages" class="messages" role="log" aria-live="polite"></div>
@@ -97,12 +111,11 @@
           <form class="composer" id="chatForm">
             <div class="composer-row">
               <button type="button" class="icon-btn" id="attachBtn" title="Attach an image"><i data-lucide="paperclip"></i></button>
-              <button type="button" class="icon-btn" id="screenBtn" title="Open the floating Vision pill — an always-on-top overlay to share your screen and talk to Majin about it"><i data-lucide="monitor"></i></button>
-              <button type="button" class="icon-btn" id="micBtn" title="Dictate"><i data-lucide="mic"></i></button>
+              <button type="button" class="icon-btn" id="screenBtn" title="Share your screen"><i data-lucide="monitor"></i></button>
               <input type="file" id="imgInput" accept="image/*" hidden />
 
               <div class="input-shell">
-                <textarea id="chatInput" rows="1" placeholder="Ask Majin to explain, build, or DO something…  type / for commands, @ for files"
+                <textarea id="chatInput" rows="1" placeholder="Ask Majin anything…"
                           autocomplete="off" spellcheck="false" aria-label="Message"></textarea>
 
                 <!-- slash / @ suggestion popover -->
@@ -119,8 +132,8 @@
                 <button type="button" class="mini-select" id="cwdChip" title="Pin a working folder to this conversation"><i data-lucide="folder"></i><span id="cwdChipLabel">cwd</span></button>
               </div>
               <div class="cf-right">
-                <span class="cf-hint"><kbd>↵</kbd> send · <kbd>⇧↵</kbd> newline · <kbd>/</kbd> commands · <kbd>@</kbd> files</span>
-                <span class="cf-busy" id="busyLabel"></span>
+                <span class="cf-hint">Enter to send · Shift+Enter for a new line</span>
+                <span class="cf-busy" id="busyLabel" role="status" aria-live="polite"></span>
               </div>
             </div>
           </form>
@@ -130,16 +143,18 @@
         </div>
       </section>
 
-      <div class="splitter" id="wsSplitter" role="separator" aria-orientation="vertical" tabindex="-1"></div>
+      <div class="splitter" id="wsSplitter" role="separator" aria-orientation="vertical" tabindex="-1" hidden></div>
+      <button class="workspace-backdrop" id="workspaceBackdrop" type="button" aria-label="Close workspace tools" hidden></button>
 
       <!-- Workspace column -->
       <section class="workspace" id="wsCol" aria-label="Workspace">
-        <div class="ws-tabs" id="wsTabs" role="tablist">
-          <button class="ws-tab active" role="tab" data-tab="canvas"><i data-lucide="layout-panel-left"></i><span>Canvas</span></button>
-          <button class="ws-tab" role="tab" data-tab="project"><i data-lucide="network"></i><span>Project</span></button>
-          <button class="ws-tab" role="tab" data-tab="reader"><i data-lucide="globe"></i><span>Reader</span></button>
-          <button class="ws-tab" role="tab" data-tab="memory"><i data-lucide="brain"></i><span>Memory</span></button>
-          <button class="ws-tab" role="tab" data-tab="activity"><i data-lucide="activity"></i><span>Activity</span><span class="tab-badge" id="actBadge" hidden>0</span></button>
+        <div class="ws-tabs" id="wsTabs" role="tablist" aria-label="Workspace tools">
+          <button class="ws-tab active" id="tab-canvas" role="tab" aria-selected="true" aria-controls="panel-canvas" tabindex="0" data-tab="canvas"><i data-lucide="layout-panel-left"></i><span>Canvas</span></button>
+          <button class="ws-tab" id="tab-project" role="tab" aria-selected="false" aria-controls="panel-project" tabindex="-1" data-tab="project"><i data-lucide="network"></i><span>Project</span></button>
+          <button class="ws-tab" id="tab-reader" role="tab" aria-selected="false" aria-controls="panel-reader" tabindex="-1" data-tab="reader"><i data-lucide="globe"></i><span>Reader</span></button>
+          <button class="ws-tab" id="tab-memory" role="tab" aria-selected="false" aria-controls="panel-memory" tabindex="-1" data-tab="memory"><i data-lucide="brain"></i><span>Memory</span></button>
+          <button class="ws-tab" id="tab-activity" role="tab" aria-selected="false" aria-controls="panel-activity" tabindex="-1" data-tab="activity"><i data-lucide="activity"></i><span>Activity</span><span class="tab-badge" id="actBadge" hidden>0</span></button>
+          <button class="icon-btn ws-close" id="workspaceCloseBtn" type="button" aria-label="Close workspace tools"><i data-lucide="x"></i></button>
           <button class="icon-btn ws-clear" id="clearWorkspaceBtn" title="Clear this panel"><i data-lucide="eraser"></i></button>
         </div>
 
@@ -153,7 +168,7 @@
         </div>
 
         <!-- ===== Canvas (rich blocks from the model) ===== -->
-        <div class="ws-panel active" id="panel-canvas" role="tabpanel">
+        <div class="ws-panel active" id="panel-canvas" role="tabpanel" aria-labelledby="tab-canvas" tabindex="0">
           <div class="panel-scroll">
             <div class="ws-title" id="wsTitle" hidden></div>
             <div class="blocks" id="blocks"></div>
@@ -167,7 +182,7 @@
         </div>
 
         <!-- ===== Project (repo map via /api/scan) ===== -->
-        <div class="ws-panel" id="panel-project" role="tabpanel">
+        <div class="ws-panel" id="panel-project" role="tabpanel" aria-labelledby="tab-project" tabindex="0" hidden>
           <div class="tool-bar">
             <div class="tb-field"><i data-lucide="folder"></i><input id="scanPath" type="text" placeholder="C:\\projects\\my-app  or  ~/PycharmProjects…" autocomplete="off" spellcheck="false" /></div>
             <button class="chip-btn primary" id="scanGoBtn"><i data-lucide="radar"></i><span>Scan</span></button>
@@ -182,7 +197,7 @@
         </div>
 
         <!-- ===== Reader (web page / PDF / captions via /api/extract) ===== -->
-        <div class="ws-panel" id="panel-reader" role="tabpanel">
+        <div class="ws-panel" id="panel-reader" role="tabpanel" aria-labelledby="tab-reader" tabindex="0" hidden>
           <div class="tool-bar">
             <div class="tb-field"><i data-lucide="link"></i><input id="readUrl" type="text" placeholder="https://…   (web page, PDF, or YouTube link)" autocomplete="off" spellcheck="false" /></div>
             <button class="chip-btn primary" id="readGoBtn"><i data-lucide="book-open"></i><span>Read</span></button>
@@ -197,7 +212,7 @@
         </div>
 
         <!-- ===== Memory (index status, search results, reminders) ===== -->
-        <div class="ws-panel" id="panel-memory" role="tabpanel">
+        <div class="ws-panel" id="panel-memory" role="tabpanel" aria-labelledby="tab-memory" tabindex="0" hidden>
           <div class="panel-scroll">
             <div class="mem-section">
               <div class="mem-head"><i data-lucide="brain"></i><h3>Semantic memory</h3></div>
@@ -215,7 +230,7 @@
         </div>
 
         <!-- ===== Activity (tool run log + approval history) ===== -->
-        <div class="ws-panel" id="panel-activity" role="tabpanel">
+        <div class="ws-panel" id="panel-activity" role="tabpanel" aria-labelledby="tab-activity" tabindex="0" hidden>
           <div class="panel-scroll">
             <div class="mem-section">
               <div class="mem-head"><i data-lucide="terminal"></i><h3>Tool run log</h3></div>
@@ -360,6 +375,6 @@
   <div class="toast-host" id="toastHost" aria-live="polite" aria-atomic="false"></div>
   <div class="confetti" id="confetti" aria-hidden="true"></div>
 
-  <script src="js/app.js?v=39"></script>
+  <script src="js/app.js?v=44"></script>
 </body>
 </html>

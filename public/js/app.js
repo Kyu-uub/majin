@@ -1,5 +1,5 @@
 /* Majin — front end (v29). A thin, framework-free client that owns the chat,
-   the Workspace block renderer, voice in/out, image attach, the persistent
+   the Workspace block renderer, image attach, the persistent
    event channel, and the SSE client that streams a turn from /api/agent.
    All capability (OS, files, screen, repo scan, web/PDF reader) lives on the
    server; this file only renders what the server streams, drives the richer
@@ -37,22 +37,23 @@
 
   /* ---------- element registry (maps 1:1 to public/index.html) ---------- */
   const els = {
-    root: document.documentElement,
+    root: document.documentElement, chatTitle: $('chatTitle'), workspaceToggle: $('workspaceToggleBtn'),
+    workspaceClose: $('workspaceCloseBtn'), workspaceBackdrop: $('workspaceBackdrop'), primaryNav: $('primaryNav'),
+    navActBadge: $('navActBadge'),
     shell: $('shell'),
     // top bar
     railToggle: $('railToggleBtn'), paletteBtn: $('paletteBtn'),
     statusDot: $('statusDot'), statusText: $('statusText'),
     themeBtn: $('themeBtn'), themeIcon: $('themeIcon'),
     autoBtn: $('autoApproveBtn'), autoIcon: $('autoApproveIcon'),
-    ttsBtn: $('ttsToggleBtn'), ttsIcon: $('ttsIcon'),
-    newWindow: $('newWindowBtn'), settings: $('settingsBtn'),
+    settings: $('settingsBtn'),
     // rail
     rail: $('convRail'), newThread: $('newThreadBtn'), convSearch: $('convSearch'),
     threadList: $('threadList'), exportBtn: $('exportBtn'), snippetsBtn: $('snippetsBtn'),
     railSplitter: $('railSplitter'),
     // chat
     msgs: $('chatMessages'), scrollPill: $('scrollPill'), scrollCount: $('scrollCount'),
-    ctxTray: $('ctxTray'), form: $('chatForm'), attach: $('attachBtn'), mic: $('micBtn'),
+    ctxTray: $('ctxTray'), form: $('chatForm'), attach: $('attachBtn'),
     screen: $('screenBtn'),
     imgInput: $('imgInput'), input: $('chatInput'), suggest: $('suggest'),
     stop: $('stopBtn'), send: $('sendBtn'),
@@ -90,12 +91,11 @@
 
   /* ---------- app state ---------- */
   const S = {
-    history: [], busy: false, attach: null, lastAttachUrl: '', recognising: false,
-    tts: localStorage.getItem('majin_tts') === '1',
+    history: [], busy: false, attach: null, lastAttachUrl: '',
     autoApprove: localStorage.getItem('majin_auto_approve') === '1',
     themeMode: localStorage.getItem('majin_theme') || 'system',
     motion: (() => { const m = localStorage.getItem('majin_motion'); if (m != null) return m === '1'; return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); })(),
-    blocks: 0, stickBottom: true, unread: 0, noKeyWarned: false,
+    blocks: 0, stickBottom: true, unread: 0, noKeyWarned: false, actCount: 0,
     threads: [], active: null, tab: 'canvas',
     turnStart: 0, turnTools: 0,
     trace: [], traceEl: null, traceDone: false
@@ -214,7 +214,7 @@
     // lucide swaps the <i> for an <svg>, so repaint through the (always-live) button, not the stale <i> node.
     paintBtnIcon(els.themeBtn, S.themeMode === 'system' ? 'monitor' : (t === 'dark' ? 'moon' : 'sun'));
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', t === 'dark' ? '#070b14' : '#eef2f8');
+    if (meta) meta.setAttribute('content', t === 'dark' ? '#111218' : '#f5f6fa');
   }
   function cycleTheme() {
     S.themeMode = S.themeMode === 'system' ? 'light' : S.themeMode === 'light' ? 'dark' : 'system';
@@ -707,9 +707,12 @@
   }
   function bumpBadge(n) {
     S.actCount += n;
-    if (S.tab === 'activity') { S.actCount = 0; els.actBadge.hidden = true; return; }
-    if (S.actCount > 0) { els.actBadge.hidden = false; els.actBadge.textContent = S.actCount > 99 ? '99+' : S.actCount; }
-    else els.actBadge.hidden = true;
+    if (S.tab === 'activity') S.actCount = 0;
+    const badges = [els.actBadge, els.navActBadge].filter(Boolean);
+    badges.forEach(badge => {
+      badge.hidden = S.actCount < 1;
+      badge.textContent = S.actCount > 99 ? '99+' : String(S.actCount);
+    });
   }
 
   /* ---------- inline per-turn tool-call trace ----------
@@ -1181,7 +1184,6 @@
     reportMetrics(Math.round((nowMs() - S.turnStart) / 1000), S.turnTools);
     checkStatus(); refreshModelChip();
     if (ev.note) toast('Heads up', ev.note);
-    speak(reply);
   }
 
   /* ---------- send + composer autosize ---------- */
@@ -1190,7 +1192,6 @@
     if (S.busy) return;
     const text = els.input.value.trim();
     if (!text && !S.attach) return;
-    if (S.recognising) stopVoice();
     if (text[0] === '/' && !S.attach) { els.input.value = ''; autosize(); hideSuggest(); runSlashCommand(text); return; }
     els.input.value = ''; autosize(); hideSuggest();
     const imgs = [];
@@ -1317,16 +1318,67 @@
   }
 
   /* ---------- workspace tab controller ---------- */
-  function openWsOverlay() { if (window.matchMedia && window.matchMedia('(max-width:860px)').matches) els.shell.classList.add('ws-open'); }
-  function closeWsOverlay() { els.shell.classList.remove('ws-open'); }
+  function openWsOverlay() {
+    els.shell.classList.add('ws-open');
+    if (els.workspaceBackdrop) els.workspaceBackdrop.hidden = false;
+  }
+  function closeWsOverlay() {
+    els.shell.classList.remove('ws-open');
+    if (els.workspaceBackdrop) els.workspaceBackdrop.hidden = true;
+    if (S.tab !== 'canvas') setTab('canvas');
+  }
   function setTab(name, reveal) {
     S.tab = name;
-    els.wsTabs.querySelectorAll('.ws-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-    document.querySelectorAll('.ws-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
-    if (name === 'activity' && els.actBadge) { els.actBadge.hidden = true; els.actBadge.textContent = '0'; }
+    const mainNavView = name === 'canvas' ? 'canvas' : name;
+    if (els.primaryNav) els.primaryNav.querySelectorAll('.primary-nav-item').forEach(b => {
+      const selected = b.dataset.view === mainNavView;
+      b.classList.toggle('active', selected);
+      if (selected) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
+    });
+    els.wsTabs.querySelectorAll('.ws-tab').forEach(b => {
+      const selected = b.dataset.tab === name;
+      b.classList.toggle('active', selected);
+      b.setAttribute('aria-selected', String(selected));
+      b.tabIndex = selected ? 0 : -1;
+    });
+    document.querySelectorAll('.ws-panel').forEach(p => {
+      const selected = p.id === 'panel-' + name;
+      p.classList.toggle('active', selected);
+      p.hidden = !selected;
+    });
+    if (name === 'activity') {
+      S.actCount = 0;
+      [els.actBadge, els.navActBadge].filter(Boolean).forEach(badge => { badge.hidden = true; badge.textContent = '0'; });
+    }
     if (reveal) openWsOverlay();
   }
   els.wsTabs.addEventListener('click', e => { const b = e.target.closest('.ws-tab'); if (b && b.dataset.tab) setTab(b.dataset.tab); });
+  if (els.primaryNav) els.primaryNav.addEventListener('click', e => {
+    const b = e.target.closest('.primary-nav-item');
+    if (!b) return;
+    const view = b.dataset.view;
+    if (view === 'canvas') { setTab('canvas'); closeWsOverlay(); }
+    else setTab(view, true);
+    if (window.matchMedia && window.matchMedia('(max-width:560px)').matches) els.shell.classList.remove('rail-open');
+  });
+  if (els.workspaceClose) els.workspaceClose.onclick = closeWsOverlay;
+  if (els.workspaceBackdrop) els.workspaceBackdrop.onclick = closeWsOverlay;
+  els.wsTabs.addEventListener('keydown', e => {
+    if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return;
+    const tabs = Array.from(els.wsTabs.querySelectorAll('.ws-tab'));
+    const current = tabs.indexOf(document.activeElement);
+    if (current < 0) return;
+    e.preventDefault();
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1
+      : (current + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+    setTab(tabs[next].dataset.tab);
+    tabs[next].focus();
+  });
+  if (els.workspaceToggle) els.workspaceToggle.onclick = () => {
+    if (els.shell.classList.contains('ws-open')) closeWsOverlay();
+    else setTab('canvas', true);
+  };
 
   function emptyHtml(icon, title, sub) {
     return '<div class="empty-state"><div class="empty-ic"><i data-lucide="' + esc(icon) + '"></i></div><h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div>';
@@ -1348,7 +1400,8 @@
     } else if (n === 'activity') {
       els.activity.innerHTML = '';
       els.approvalLog.innerHTML = '<span class="muted">Confirmed &amp; denied actions are recorded here.</span>';
-      if (els.actBadge) { els.actBadge.hidden = true; els.actBadge.textContent = '0'; }
+      S.actCount = 0;
+      [els.actBadge, els.navActBadge].filter(Boolean).forEach(badge => { badge.hidden = true; badge.textContent = '0'; });
     }
     toast('Workspace', 'Panel cleared');
   }
@@ -1361,7 +1414,6 @@
     { cmd: 'clear', icon: 'eraser', desc: 'Clear the current workspace panel' },
     { cmd: 'theme', icon: 'moon', desc: 'Cycle theme: system → light → dark' },
     { cmd: 'auto', icon: 'shield', desc: 'Toggle auto-approve of safe actions' },
-    { cmd: 'tts', icon: 'volume-2', desc: 'Toggle spoken replies' },
     { cmd: 'export', icon: 'download', desc: 'Export this chat as Markdown' },
     { cmd: 'scan', icon: 'radar', desc: 'Map a project folder → Project tab   (path)' },
     { cmd: 'read', icon: 'globe', desc: 'Read a URL / PDF / video → Reader tab   (url)' },
@@ -1392,7 +1444,6 @@
       case 'clear': clearActivePanel(); break;
       case 'theme': cycleTheme(); break;
       case 'auto': els.autoBtn.click(); break;
-      case 'tts': toggleTts(); break;
       case 'export': exportActive(); break;
       case 'scan': setTab('project', true); if (rest) scanProject(rest); else els.scanPath.focus(); break;
       case 'read': setTab('reader', true); if (rest) readLink(rest); else els.readUrl.focus(); break;
@@ -1475,68 +1526,10 @@
   els.input.addEventListener('click', () => { if (!els.suggest.hidden) handleInputSuggestions(); });
   els.input.addEventListener('blur', () => { setTimeout(hideSuggest, 140); });
 
-  /* ---------- voice input (Web Speech) ---------- */
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recog = null, voiceTarget = null;
-  function startVoice(inputEl, btnEl) {
-    inputEl = inputEl || els.input; btnEl = btnEl || els.mic;
-    if (!SR) { toast('Dictate', 'Voice input needs Chrome / Edge'); return; }
-    if (S.recognising) return stopVoice();
-    voiceTarget = { input: inputEl, btn: btnEl };
-    try {
-      recog = new SR();
-      recog.lang = 'en-US'; recog.interimResults = true; recog.continuous = false; recog.maxAlternatives = 1;
-      const start = inputEl.value;
-      const spacer = start && !/\s$/.test(start) ? ' ' : '';
-      btnEl.classList.add('listening'); S.recognising = true;
-      recog.onresult = ev => { let t = ''; for (let i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript; inputEl.value = start + spacer + t; if (inputEl === els.input) autosize(); };
-      recog.onerror = ev => { if (ev.error === 'not-allowed') toast('Dictate', 'Microphone permission denied'); stopVoice(); };
-      recog.onend = () => stopVoice();
-      recog.start();
-      try { inputEl.focus(); } catch (e) {}
-    } catch (e) { stopVoice(); }
-  }
-  function stopVoice() {
-    S.recognising = false;
-    try { els.mic && els.mic.classList.remove('listening'); } catch (e) {}
-    try { if (voiceTarget && voiceTarget.btn) voiceTarget.btn.classList.remove('listening'); } catch (e) {}
-    voiceTarget = null;
-    try { if (recog) { recog.onend = null; recog.abort(); } } catch (e) {}
-    recog = null;
-  }
-  els.mic.onclick = () => { S.recognising ? stopVoice() : startVoice(els.input, els.mic); };
-  if (!SR) els.mic.title = 'Dictate — not supported in this browser';
-
-  /* ---------- text-to-speech ---------- */
-  function paintTts() {
-    els.ttsBtn.setAttribute('aria-pressed', S.tts ? 'true' : 'false');
-    els.ttsBtn.title = S.tts ? 'Voice replies ON' : 'Voice replies OFF';
-    paintBtnIcon(els.ttsBtn, S.tts ? 'volume-2' : 'volume-x');
-  }
-  function toggleTts() {
-    S.tts = !S.tts; ls('majin_tts', S.tts ? '1' : '0'); paintTts();
-    if (!S.tts) { try { speechSynthesis.cancel(); } catch (e) {} }
-    toast('Voice', S.tts ? 'Replies will be spoken aloud' : 'Voice replies off');
-  }
-  function speak(text) {
-    if (!S.tts || !text || !('speechSynthesis' in window)) return;
-    try {
-      speechSynthesis.cancel();
-      const clean = String(text).replace(/```[\s\S]*?```/g, ' Code block. ')
-        .replace(/`([^`]+)`/g, '$1').replace(/^[#\s>|*]+/gm, '').replace(/[#*_>|]/g, ' ')
-        .replace(/\s+/g, ' ').trim().slice(0, 4000);
-      if (!clean) return;
-      const u = new SpeechSynthesisUtterance(clean);
-      u.rate = 1.03; u.pitch = 1;
-      speechSynthesis.speak(u);
-    } catch (e) {}
-  }
-  els.ttsBtn.onclick = toggleTts;
   els.themeBtn.onclick = cycleTheme;
 
   /* ---------- independent window ---------- */
   function newChatWindow() { try { window.open(location.href, '_blank', 'noopener'); } catch (e) {} }
-  els.newWindow.onclick = newChatWindow;
 
   /* ==================== PROJECT MAP  (/api/scan + /api/file) ==================== */
   async function scanProject(p) {
@@ -1749,7 +1742,12 @@
   function persistActiveHistory() { const t = curThread(); if (t) { t.history = slimForSave(S.history); t.updated = nowMs(); saveThreads(); } }
   function saveActive() { const t = curThread(); if (t) { t.history = slimForSave(S.history); t.updated = nowMs(); saveThreads(); renderThreadList(els.convSearch.value); updateStatusbarThread(); } }
   function saveDraft() { const t = curThread(); if (t) { t.draft = els.input.value; saveThreads(); } }
-  function updateStatusbarThread() { const t = curThread(); els.sbThread.textContent = (t && t.title) || 'New chat'; }
+  function updateStatusbarThread() {
+    const t = curThread();
+    const title = (t && t.title) || 'New conversation';
+    els.sbThread.textContent = title;
+    if (els.chatTitle) els.chatTitle.textContent = title;
+  }
 
   function renderThreadList(q) {
     q = (q || '').toLowerCase();
@@ -1935,7 +1933,6 @@
       { label: 'Open Activity log', icon: 'activity', hint: 'Tab', run: () => setTab('activity', true) },
       { label: 'Cycle theme (system → light → dark)', icon: 'moon', run: cycleTheme },
       { label: S.autoApprove ? 'Turn auto-approve off' : 'Turn auto-approve on', icon: 'shield', run: () => els.autoBtn.click() },
-      { label: S.tts ? 'Voice replies: off' : 'Voice replies: on', icon: 'volume-2', run: toggleTts },
       { label: 'Settings — provider, model & keys', icon: 'settings', hint: 'Enter', run: openSettings },
       { label: 'Export this conversation (.md)', icon: 'download', run: exportActive },
       { label: 'Saved prompt snippets', icon: 'bookmark', run: openSnippets },
@@ -2002,12 +1999,10 @@
 
   /* ==================== HINT CHIPS (welcome) ==================== */
   const HINTS = [
-    'Explain how this repo is structured — scan a folder first, then summarise its modules',
-    'Write a Python script to rename every file in a folder by its modified date',
-    'Take a screenshot and tell me what is on my screen',
-    'Refactor this function into a pure one and add pytest unit tests',
-    'Set a reminder to review my pull request tomorrow at 10am',
-    'Find in my indexed files where the database connection is configured',
+    'Explain how this codebase is organized',
+    'Read this page or PDF and summarize it',
+    'Write a script to automate a repetitive task',
+    'Look at my screen and help me with what is open',
   ];
   function renderHintChips() {
     els.hintChips.innerHTML = HINTS.map(h => '<button class="sample-prompt" type="button">' + esc(cut(h, 72)) + '</button>').join('');
@@ -2028,14 +2023,13 @@
 
   /* ==================== BOOT ==================== */
   async function boot() {
-    applyTheme(); applyMotion(); paintAutoApprove(); paintTts();
+    applyTheme(); applyMotion(); paintAutoApprove();
     await ensureToken();
     bootThreadUI();
     renderHintChips();
     await loadConfig();
     fillProviders(); loadModels(S.CFG && S.CFG.model);
     renderMemoryStats(); renderReminders();
-    applyWsWidth(); setupSplitter(els.wsSplitter, wsCol, 24, 72, 'majin_ws');
     setTab('canvas');
     checkStatus(); setInterval(checkStatus, 20000);
     openEvents();

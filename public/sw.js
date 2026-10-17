@@ -4,14 +4,14 @@
    The UI is now a single self-authored css/app.css (no Tailwind build) and every
    library is served from public/vendor, so there is nothing off-CDN to fall back to
    any more — offline is the normal case. */
-const VERSION = 'majin-v39';
+const VERSION = 'majin-v46';
 const SHELL = [
   './',
   './index.html',
   './vision.html',
-  './css/app.css?v=39',
-  './js/app.js?v=39',
-  './js/vision.js?v=36',
+  './css/app.css?v=46',
+  './js/app.js?v=44',
+  './js/vision.js?v=41',
   './vendor/lucide.min.js?v=29',
   './vendor/marked.min.js?v=29',
   './vendor/purify.min.js?v=29',

@@ -21,13 +21,13 @@
     root: $('vroot'), log: $('vlog'), bar: $('vbar'), input: $('vin'),
     thumb: $('vthumb'), title: $('vtitle'), sub: $('vsub'),
     share: $('vshare'), shareLabel: $('vshareLabel'), see: $('vsee'),
-    mic: $('vmic'), send: $('vsend'), close: $('vclose')
+    send: $('vsend'), close: $('vclose')
   };
 
   const MAX_W = 1280;                     // downscale frames for upload
   const S = { history: [], busy: false, abort: null, raw: '', aiLine: null,
     stream: null, track: null, canvas: null, ctx: null, active: false, screenW: 0, screenH: 0,
-    recognising: false, token: null, logOpen: false };
+    token: null, logOpen: false };
 
   /* ---------- token (same CSRF scheme as the main app) ---------- */
   async function ensureToken() {
@@ -131,7 +131,6 @@
 
   function send() {
     if (S.busy) return;
-    if (S.recognising) stopVoice();
     const userText = String(els.input.value || '').trim();
     const frame = S.active ? grabFrame() : null;
     if (!userText && !frame) return;
@@ -221,24 +220,6 @@
     if (e) { if (e.name !== 'AbortError') { ensureAiLine(); S.raw += (S.raw ? '\n\n' : '') + '⚠️ ' + (e.message || String(e)); S.aiLine.querySelector('.vbody').innerHTML = md(S.raw); } }
   }
 
-  /* ---------- voice (Web Speech) into the pill ---------- */
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recog = null;
-  function startVoice() {
-    if (!SR) { addSys('Voice input needs Chrome / Edge.'); return; }
-    if (S.recognising) return stopVoice();
-    try {
-      recog = new SR(); recog.lang = 'en-US'; recog.interimResults = true; recog.continuous = false; recog.maxAlternatives = 1;
-      const start = els.input.value, spacer = start && !/\s$/.test(start) ? ' ' : '';
-      els.mic.classList.add('listening'); S.recognising = true;
-      recog.onresult = ev => { let t = ''; for (let i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript; els.input.value = start + spacer + t; };
-      recog.onerror = ev => { if (ev.error === 'not-allowed') addSys('Microphone permission denied.'); stopVoice(); };
-      recog.onend = () => stopVoice(); recog.start();
-      els.input.focus();
-    } catch (e) { stopVoice(); }
-  }
-  function stopVoice() { S.recognising = false; els.mic.classList.remove('listening'); try { if (recog) { recog.onend = null; recog.abort(); } } catch (e) {} recog = null; }
-
   /* ---------- wiring ---------- */
   function toggleLog() {
     if (els.log.hidden) { if (els.log.children.length) { els.log.hidden = false; S.logOpen = true; } else startCapture(); }
@@ -252,7 +233,6 @@
   }
 
   els.share.onclick = () => { S.active ? stopCapture() : startCapture(); };
-  els.mic.onclick = () => { S.recognising ? stopVoice() : startVoice(); };
   els.send.onclick = send;
   els.see.onclick = toggleLog;
   els.close.onclick = closeWidget;
@@ -269,7 +249,6 @@
   document.head.appendChild(sty);
 
   try { if (window.lucide) lucide.createIcons(); } catch (e) {}
-  if (!SR) els.mic.title = 'Voice input not supported in this browser';
   paintShare();
   fitWindow();
 })();

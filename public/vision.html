@@ -21,7 +21,7 @@
   <script src="vendor/lucide.min.js?v=29"></script>
   <script src="vendor/marked.min.js?v=29"></script>
   <script src="vendor/purify.min.js?v=29"></script>
-  <script src="js/vision.js?v=36" defer></script>
+  <script src="js/vision.js?v=41" defer></script>
 
   <style>
     :root {
@@ -150,18 +150,11 @@
       color: #c7d2fe; border-color: rgba(99,102,241,.6);
       box-shadow: 0 0 0 3px rgba(99,102,241,.18), 0 0 18px rgba(99,102,241,.35);
     }
-    .vc.listening {
-      color: #fda4af; border-color: rgba(244,63,94,.6);
-      box-shadow: 0 0 0 3px rgba(244,63,94,.18), 0 0 18px rgba(244,63,94,.4);
-      animation: vglow 1.4s ease-in-out infinite;
-    }
     .vc.close:hover { background: rgba(244,63,94,.18); color: #fda4af; border-color: rgba(244,63,94,.5); }
-    @keyframes vglow { 0%,100% { box-shadow: 0 0 0 3px rgba(244,63,94,.18), 0 0 14px rgba(244,63,94,.3); } 50% { box-shadow: 0 0 0 4px rgba(244,63,94,.24), 0 0 22px rgba(244,63,94,.5); } }
 
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-thumb { background: var(--s3); border-radius: 8px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--s4); }
-    @media (prefers-reduced-motion: reduce) { .vc.listening { animation: none !important; } }
   </style>
 </head>
 <body>
@@ -181,9 +174,8 @@
       </div>
       <div class="vrow">
         <button type="button" class="vc close" id="vclose" title="Close"><i data-lucide="x"></i></button>
-        <input id="vin" class="vin" type="text" placeholder="Ask about your screen…  type or tap the mic" autocomplete="off" spellcheck="false" aria-label="Ask about your screen" />
+        <input id="vin" class="vin" type="text" placeholder="Ask about your screen…" autocomplete="off" spellcheck="false" aria-label="Ask about your screen" />
         <button type="button" class="vc see" id="vsee" title="Majin can see your screen" aria-disabled="true"><i data-lucide="scan-eye"></i></button>
-        <button type="button" class="vc mic" id="vmic" title="Talk to Majin"><i data-lucide="mic"></i></button>
         <button type="button" class="vc send" id="vsend" title="Send  (Enter)"><i data-lucide="arrow-up"></i></button>
       </div>
     </div>
