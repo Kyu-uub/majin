@@ -1,14 +1,14 @@
 {
   "name": "majin-assistant",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "type": "module",
   "description": "Majin — a local AI assistant that explains things and does them, from one chat with a live workspace.",
   "author": "Majin",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YOUR_GITHUB_USERNAME/majin.git"
+    "url": "git+https://github.com/Kyu-uub/majin.git"
   },
-  "homepage": "https://github.com/YOUR_GITHUB_USERNAME/majin",
+  "homepage": "https://github.com/Kyu-uub/majin",
   "main": "desktop/main.js",
   "scripts": {
     "start": "node server.js",
